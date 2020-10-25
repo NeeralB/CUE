@@ -137,42 +137,66 @@ def eyes_contour_points(facial_landmarks):
     right_eye = np.array(right_eye, np.int32)
     return left_eye, right_eye
 
-def get_gaze_ratio(eye_points, facial_landmarks):
-    left_eye_region = np.array([(facial_landmarks.part(eye_points[0]).x, facial_landmarks.part(eye_points[0]).y),
-                                (facial_landmarks.part(eye_points[1]).x, facial_landmarks.part(eye_points[1]).y),
-                                (facial_landmarks.part(eye_points[2]).x, facial_landmarks.part(eye_points[2]).y),
-                                (facial_landmarks.part(eye_points[3]).x, facial_landmarks.part(eye_points[3]).y),
-                                (facial_landmarks.part(eye_points[4]).x, facial_landmarks.part(eye_points[4]).y),
-                                (facial_landmarks.part(eye_points[5]).x, facial_landmarks.part(eye_points[5]).y)], np.int32)
-    # cv2.polylines(frame, [left_eye_region], True, (0, 0, 255), 2)
+cv2.namedWindow("Color detectors") 
+cv2.createTrackbar("Upper Hue", "Color detectors", 
+				153, 180, setValues) 
+cv2.createTrackbar("Upper Saturation", "Color detectors", 
+				255, 255, setValues) 
+cv2.createTrackbar("Upper Value", "Color detectors", 
+				255, 255, setValues) 
+cv2.createTrackbar("Lower Hue", "Color detectors", 
+				64, 180, setValues) 
+cv2.createTrackbar("Lower Saturation", "Color detectors", 
+				72, 255, setValues) 
+cv2.createTrackbar("Lower Value", "Color detectors", 
+				49, 255, setValues) 
 
-    height, width, _ = frame.shape
-    mask = np.zeros((height, width), np.uint8)
-    cv2.polylines(mask, [left_eye_region], True, 255, 2)
-    cv2.fillPoly(mask, [left_eye_region], 255)
-    eye = cv2.bitwise_and(gray, gray, mask=mask)
 
-    min_x = np.min(left_eye_region[:, 0])
-    max_x = np.max(left_eye_region[:, 0])
-    min_y = np.min(left_eye_region[:, 1])
-    max_y = np.max(left_eye_region[:, 1])
+# Giving different arrays to handle colour 
+# points of different colour These arrays 
+# will hold the points of a particular colour 
+# in the array which will further be used 
+# to draw on canvas 
+bpoints = [deque(maxlen = 1024)] 
+gpoints = [deque(maxlen = 1024)] 
+rpoints = [deque(maxlen = 1024)] 
+ypoints = [deque(maxlen = 1024)] 
 
-    gray_eye = eye[min_y: max_y, min_x: max_x]
-    _, threshold_eye = cv2.threshold(gray_eye, 70, 255, cv2.THRESH_BINARY)
-    height, width = threshold_eye.shape
-    left_side_threshold = threshold_eye[0: height, 0: int(width / 2)]
-    left_side_white = cv2.countNonZero(left_side_threshold)
+# These indexes will be used to mark position 
+# of pointers in colour array 
+blue_index = 0
+green_index = 0
+red_index = 0
+yellow_index = 0
 
-    right_side_threshold = threshold_eye[0: height, int(width / 2): width]
-    right_side_white = cv2.countNonZero(right_side_threshold)
+# The kernel to be used for dilation purpose 
+kernel = np.ones((5, 5), np.uint8) 
 
-    if left_side_white == 0:
-        gaze_ratio = 1
-    elif right_side_white == 0:
-        gaze_ratio = 5
-    else:
-        gaze_ratio = left_side_white / right_side_white
-    return gaze_ratio
+# The colours which will be used as ink for 
+# the drawing purpose 
+colors = [(255, 0, 0), (0, 255, 0), 
+		(0, 0, 255), (0, 255, 255)] 
+colorIndex = 0
+
+# Here is code for Canvas setup 
+paintWindow = np.zeros((471, 636, 3)) + 255
+
+cv2.namedWindow('Paint', cv2.WINDOW_AUTOSIZE) 
+
+
+# Loading the default webcam of PC. 
+cap = cv2.VideoCapture(0) 
+
+# Keep looping 
+while True: 
+	
+	# Reading the frame from the camera 
+	ret, frame = cap.read() 
+	
+	# Flipping the frame to see same side of yours 
+	frame = cv2.flip(frame, 1) 
+	hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV) 
+
 
 # Counters
 frames = 0
@@ -283,32 +307,6 @@ while True:
                 blinking_frames = 0
 
 
-    # Display letters on the keyboard
-    if select_keyboard_menu is False:
-        if frames == frames_active_letter:
-            letter_index += 1
-            frames = 0
-        if letter_index == 15:
-            letter_index = 0
-        for i in range(15):
-            if i == letter_index:
-                light = True
-            else:
-                light = False
-            draw_letters(i, keys_set[i], light)
-
-    # Show the text we're writing on the board
-    cv2.putText(board, text, (80, 100), font, 9, 0, 3)
-
-    # Blinking loading bar
-    percentage_blinking = blinking_frames / frames_to_blink
-    loading_x = int(cols * percentage_blinking)
-    cv2.rectangle(frame, (0, rows - 50), (loading_x, rows), (51, 51, 51), -1)
-
-
-    cv2.imshow("Frame", frame)
-    cv2.imshow("Virtual keyboard", keyboard)
-    cv2.imshow("Board", board)
 
     key = cv2.waitKey(1)
     if key == 27:
